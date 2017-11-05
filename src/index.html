@@ -1,0 +1,82 @@
+<html>
+<head>
+    <meta charset="UTF-8">
+
+    <title>PROTOXYDE-GAMING.COM - ALL RIGHTS RESERVED - PROTOXYDE STUDIO LTD.</title>
+
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+        }
+
+        iframe {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+    </style>
+</head>
+<body>
+    <iframe id="browser" src="https://accounts.google.com/login"></iframe>
+
+    <script>
+        let ipcRenderer = require('electron').ipcRenderer
+
+        // Namespace safe for javascript injection
+        let Protoxyde = { }
+
+        ipcRenderer.on('play', (event, link) => {
+            ipcRenderer.send('load')
+
+            Protoxyde.Browser = document.querySelector('#browser')
+            Protoxyde.Browser.addEventListener('load', OnIFrameLoad)
+            Protoxyde.Browser.src = link
+        })
+
+        ipcRenderer.on('stop', () => {
+            OnEnd()
+        })
+
+        function OnPlay () {
+            ipcRenderer.send('play')
+        }
+
+        function OnEnd () {
+            ipcRenderer.send('end', false) // false means no problem occured.
+
+            Protoxyde.Player.removeEventListener('play', OnPlay)
+            Protoxyde.Player.removeEventListener('ended', OnEnd)
+            Protoxyde.Player.removeEventListener('timeupdate', OnUpdate)
+
+            Protoxyde.Browser.src = ''
+        }
+
+        function OnUpdate () {
+            ipcRenderer.send('time', Protoxyde.Player.currentTime, Protoxyde.Player.duration)
+        }
+
+        function OnIFrameLoad () {
+            Protoxyde.Player = document.querySelector('#browser').contentDocument.querySelector('video')
+
+            // IFrame is loaded, remove the listener.
+            Protoxyde.Browser.removeEventListener('load', OnIFrameLoad)
+
+            // Check if video is available
+            if (!Protoxyde.Player) {
+                ipcRenderer.send('end', true) // true, means video blocked.
+                Protoxyde.Browser.src = ''
+                return
+            }
+
+            // Inject some code to youtube :>
+            Protoxyde.Player.addEventListener('play', OnPlay)
+            Protoxyde.Player.addEventListener('ended', OnEnd)
+            Protoxyde.Player.addEventListener('timeupdate', OnUpdate)
+
+            Protoxyde.Player.play()
+        }
+    </script>
+</body>
+</html>

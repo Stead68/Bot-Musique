@@ -1,0 +1,309 @@
+<template>
+    <div>
+
+        <h2 class="ui header center aligned inverted">
+            <div v-if="roulette.isReady">
+                <div class="content" v-if="!roulette.isSpinning && nextSpin <= 12">
+                    Prochain tirage dans {{ nextSpin }}s
+                    <div class="sub header">Préparez vos paris!</div>
+                </div>
+                <div class="content" v-else-if="!roulette.isSpinning && nextSpin > 12">
+                    Prochain tirage dans {{ nextSpin }}s
+                    <div class="sub header">
+                        <span class="ui label" :class="[roulette.current.color]">{{ roulette.current.number }}</span>
+                    </div>
+                </div>
+                <div class="content" v-else>Tirage en cours...
+                    <div class="sub header">
+                        <span class="ui label" :class="[roulette.current.color]">{{ roulette.current.number }}</span>
+                    </div>
+                </div>
+            </div>
+            <div v-else>
+                <div class="content">
+                    Un tirage est en cours
+                    <div class="sub header">Merci de patienter la synchronisation avec le serveur.</div>
+                </div>
+            </div>
+        </h2>
+
+        <div class="ui inverted horizontal divider">
+            <i class="ui caret down icon"></i>
+        </div>
+        <div id="roulette">
+            <div id="line"></div>
+            <div v-for="(number, position) in numbers">
+                <Number :position="position" :number="number" :offset="roulette.internal.offset"></Number>
+            </div>
+        </div>
+        <div class="ui inverted horizontal divider">
+            <i class="ui caret up icon"></i>
+        </div>
+
+        <div class="px center aligned">
+            <p>
+                _ MONTANT DU PARI _
+            </p>
+            <div class="ui right labeled left input">
+                <input type="number" placeholder="Votre pari" v-model="amount">
+
+                <a class="ui label red" @click="decrease(1000)">-1000</a>
+                <a class="ui label red" @click="decrease(100)">-100</a>
+                <a class="ui label red" @click="decrease(10)">-10</a>
+                <a class="ui label green" @click="increase(10)">+10</a>
+                <a class="ui label green" @click="increase(100)">+100</a>
+                <a class="ui label green" @click="increase(1000)">+1000</a>
+                <a class="ui label gray" @click="raz()">RàZ</a>
+            </div>
+
+            <br>
+
+            <div class="ui inverted statistic">
+                <div class="value">
+                    {{ roulette.jackpot }}
+                </div>
+                <div class="label">
+                    <i class="ui gift icon"></i> JACKPOT
+                </div>
+            </div>
+        </div>
+
+        <br>
+
+        <div class="ui equal width grid">
+            <div class="column">
+                <div class="ui inverted segment red center aligned">
+                    <button class="ui inverted button" :disabled="roulette.isSpinning" @click="bet('red')">
+                        <i class="ui diamond icon"></i> PARIER SUR ROUGE
+                    </button>
+                </div>
+
+                <div class="ui inverted vertical list">
+                    <div class="item" v-for="bet of bets.red">
+                        <i class="ui middle aligned user icon"></i>
+                        <div class="content">
+                            <div class="header">
+                                <span class="ui violet label">{{ bet.client.nick }}</span> <i class="ui star icon"></i>{{ bet.amount }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="column">
+                <div class="ui inverted segment green center aligned">
+                    <button class="ui inverted button" :disabled="roulette.isSpinning" @click="bet('green')">
+                        <i class="ui diamond icon"></i> PARIER SUR VERT
+                    </button>
+                </div>
+
+                <div class="ui inverted vertical list">
+                    <div class="item" v-for="bet of bets.green">
+                        <i class="ui middle aligned user icon"></i>
+                        <div class="content">
+                            <div class="header">
+                                <span class="ui violet label">{{ bet.client.nick }}</span> <i class="ui star icon"></i>{{ bet.amount }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="column">
+                <div class="ui inverted segment black center aligned">
+                    <button class="ui inverted button" :disabled="roulette.isSpinning" @click="bet('black')">
+                        <i class="ui diamond icon"></i> PARIER SUR NOIR
+                    </button>
+                </div>
+
+                <div class="ui inverted vertical list">
+                    <div class="item" v-for="bet of bets.black">
+                        <i class="ui middle aligned user icon"></i>
+                        <div class="content">
+                            <div class="header">
+                                <span class="ui violet label">{{ bet.client.nick }}</span> <i class="ui star icon"></i>{{ bet.amount }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="column">
+                <Connected></Connected>
+            </div>
+        </div>
+    </div>
+</template>
+
+<script>
+    import NumberComponent from './Number.vue'
+    import ConnectedComponent from './Connected.vue'
+
+    import Navigation from '../Navigation.vue'
+    import AccountStore from '../../stores/AccountStore'
+    import BetsStore from './stores/BetsStore'
+
+    import Connection from '../../classes/Connection'
+
+    import NUMBERS from './constants/Numbers'
+
+    let Socket = Connection.GetSocket()
+
+    let RouletteStore = {
+        jackpot: 0,
+        nextSpinIn: 0,
+        isSpinning: false,
+        isReady: false,
+        current: null,
+        internal: {
+            iterationCount: 0,
+            startValue: 0,
+            finalValue: 0,
+            totalIterations: 0,
+            started: 0,
+            isActive: false,
+            offset: 0
+        },
+        picked: null
+    }
+
+    export default {
+        components: {
+            Number: NumberComponent,
+            Connected: ConnectedComponent,
+            Navigation: Navigation
+        },
+        data () {
+            return {
+                numbers: [].concat(NUMBERS).concat(NUMBERS).concat(NUMBERS),
+                amount: 0,
+                busy: false,
+                bets: BetsStore.state,
+                roulette: RouletteStore
+            }
+        },
+        destroyed () {
+            this.roulette.internal.isActive = false
+            this.roulette.isReady = false
+        },
+        mounted () {
+            this.roulette.internal.isActive = true
+
+            if (!RouletteStore.isSpinning) {
+                this.roulette.isReady = true
+            }
+        },
+        methods: {
+            decrease (qty) {
+                if (this.amount >= qty)
+                    this.amount = parseInt(this.amount, 10) - qty
+            },
+            increase (qty) {
+                if (this.amount + qty < AccountStore.state.experience) {
+                    this.amount = parseInt(this.amount, 10) + qty
+                }
+            },
+            raz () {
+                this.amount = 0
+            },
+            bet (type) {
+                Socket.emit('roulette.bet', { type: type, amount: this.amount })
+            }
+        },
+        computed: {
+            nextSpin: function () {
+                return (this.roulette.nextSpinIn / 1000).toFixed(1)
+            }
+        }
+    }
+
+    /**
+     * LISTENERS
+     */
+    Socket.on('roulette.spin', (data) => {
+        RouletteStore.internal.iterationCount = 0
+        RouletteStore.internal.finalValue = (data.random + 3700 * 2) - (document.querySelector('#roulette').offsetWidth / 2)
+        RouletteStore.internal.totalIterations = 10000
+        RouletteStore.internal.started = Date.now()
+        RouletteStore.picked = data.picked
+    })
+
+    Socket.on('roulette.bets', (payload) => {
+        BetsStore.state.red = payload.red
+        BetsStore.state.green = payload.green
+        BetsStore.state.black = payload.black
+    })
+
+    Socket.on('roulette.jackpot', jackpot => {
+        RouletteStore.jackpot = jackpot
+    })
+
+    Socket.on('roulette.status', data => {
+        RouletteStore.isSpinning = data.isSpinning
+        RouletteStore.nextSpinIn = data.nextSpinIn
+
+        if (!RouletteStore.isReady && !data.isSpinning) {
+            RouletteStore.isReady = true
+        }
+    })
+
+    /*
+     * ANIMATION
+     */
+    function Draw () {
+        if (RouletteStore.internal.isActive) {
+            let started = RouletteStore.internal.started
+            let startValue = RouletteStore.internal.startValue
+            let finalValue = RouletteStore.internal.finalValue
+
+            if (RouletteStore.internal.iterationCount <= RouletteStore.internal.totalIterations) {
+                RouletteStore.internal.iterationCount = Date.now() - started
+
+                RouletteStore.internal.offset = Math.easeOutCubic(RouletteStore.internal.iterationCount, startValue, finalValue, RouletteStore.internal.totalIterations) % 3700
+            } else {
+                RouletteStore.current = RouletteStore.picked
+            }
+
+            if (RouletteStore.nextSpinIn > 0) {
+                RouletteStore.nextSpinIn -= Date.now() - rendered
+            }
+
+            if (RouletteStore.isSpinning) {
+                let offset = RouletteStore.internal.offset + (document.querySelector('#roulette').offsetWidth / 2)
+                let current = Math.floor((offset % 3700) / 100)
+
+                RouletteStore.current = NUMBERS[current]
+            }
+        }
+
+        rendered = Date.now()
+        requestAnimationFrame(Draw)
+    }
+
+    let rendered = Date.now()
+    requestAnimationFrame(Draw)
+
+    Math.easeOutCubic = (currentIteration, startValue, changeInValue, totalIterations) => {
+        return changeInValue * (Math.pow(currentIteration / totalIterations - 1, 3) + 1) + startValue;
+    }
+</script>
+
+<style>
+    #roulette {
+        overflow: hidden;
+        width: 100%;
+        height: 120px;
+        position: relative;
+        padding: 10px 0px;
+        margin: -10px 0px;
+    }
+
+    #line {
+        position: absolute;
+        width: 2px;
+        height: 120px;
+        background: rgba(255, 255, 255, 0.7);
+        top: 0px;
+        left: 0;
+        right: 0;
+        margin: 0 auto;
+        z-index: 500;
+    }
+</style>

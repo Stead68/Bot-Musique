@@ -1,0 +1,29 @@
+body {
+    background: rgb(20, 20, 20);
+    padding: 70px 10px;
+    color: #ffffff;
+}
+
+.px.center.aligned {
+    text-align: center;
+}
+
+.px.cursor.pointer {
+    cursor: pointer;
+}
+
+.px.float.right {
+    float: right;
+}
+
+.ui.button {
+    -webkit-border-radius: 0;
+    -moz-border-radius: 0;
+    border-radius: 0;
+}
+
+.ui.label {
+    -webkit-border-radius: 0;
+    -moz-border-radius: 0;
+    border-radius: 0;
+}
