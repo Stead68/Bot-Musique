@@ -34,7 +34,7 @@ class Track {
         queryPayload.v = queryData.v || `OSfxEOK0elM` // If no video is sent, play `AH BAH BRAVO NILS !`
         queryPayload.t = queryData.t || `0s` // If not `t` argument is set, force it to zero second.
 
-        let queryPayload = querystring.stringify(queryPayload)
+        queryPayload = querystring.stringify(queryPayload)
 
         urlData.search = `?` + queryPayload
 
