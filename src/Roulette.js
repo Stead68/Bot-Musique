@@ -49,7 +49,7 @@ class Roulette {
         Roulette.NextSpinIn = Date.now()
         Roulette.Bets = {  }
         Roulette.LastRewards = [ ]
-        Roulette.Jackpot = 50330
+        Roulette.Jackpot = 66241
 
         Roulette._Spin()
     }
@@ -90,7 +90,7 @@ class Roulette {
 
                     // Compute jackpot rand
                     let luck = bet.luck
-                    let rand = Math.floor() * 100
+                    let rand = Math.random() * 100
 
                     if (rand <= luck) {
                         jackpotWon = true
