@@ -1,4 +1,5 @@
 const url = require('url')
+const querystring = require('querystring')
 const request = require('request')
 const cheerio = require('cheerio')
 
@@ -18,7 +19,31 @@ class Track {
         this.multiplier = 1
     }
 
-    AdvancedCheck () {
+    /**
+     * Clean YouTube link.
+     * Force YouTube to start video from the start if no `t` argument is passed.
+     *
+     * @return {void}
+     */
+    _cleanUrl() {
+        let urlData = url.parse(this.link)
+        let queryData = querystring.parse(urlData.query)
+
+        let queryPayload = { }
+
+        queryPayload.v = queryData.v || `OSfxEOK0elM` // If no video is sent, play `AH BAH BRAVO NILS !`
+        queryPayload.t = queryData.t || `0s` // If not `t` argument is set, force it to zero second.
+
+        let queryPayload = querystring.stringify(queryPayload)
+
+        urlData.search = `?` + queryPayload
+
+        this.link = url.format(urlData)
+    }
+
+    _advancedCheck () {
+        this._cleanUrl()
+
         let promise = new Promise((resolve, reject) => {
             let req = request(this.link)
             let body = ''
@@ -34,6 +59,10 @@ class Track {
                     resolve(true)
                 })
             })
+
+            req.on('error', () => {
+                resolve(false)
+            })
         })
 
         return promise
@@ -45,7 +74,7 @@ class Track {
 
             // To-Do: Advanced check but i'm too lazy yet...
             if (parts.host === 'youtu.be' || parts.host === 'www.youtube.com') {
-                let verified = await this.AdvancedCheck()
+                let verified = await this._advancedCheck()
 
                 resolve(verified)
             } else {
