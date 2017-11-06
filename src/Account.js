@@ -21,7 +21,10 @@ class Account {
                 payload.token = account.token
             }
 
-            socket.emit('account.token', payload)
+            // Very basic anti brute-force
+            setTimeout(() => {
+                socket.emit('account.token', payload)
+            }, 250)
         })
 
         socket.on('account.nick', async nick => {
@@ -42,7 +45,10 @@ class Account {
                 Player.BroadcastConnected()
             }
 
-            socket.emit('account.nick', payload)
+            // Very basic anti brute-force.
+            setTimeout(() => {
+                socket.emit('account.nick', payload)
+            }, 250)
         })
 
         socket.on('account.password', async data => {
