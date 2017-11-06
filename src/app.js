@@ -121,15 +121,13 @@ io.on('connect', socket => {
         // Delete the client itself only if no other instance are associated to it.
         let token = Sockets[socket.id]
 
-        io.of(token).clients((error, clients) => {
-            if (clients.length === 0) {
-                Clients[token].isConnected = false
-                Clients[token].hasVoted = false
-            }
+        if (!io.nsps['/'].adapter.rooms[token]) {
+            Clients[token].isConnected = false
+            Clients[token].hasVoted = false
 
             // Broadcast list
             Player.BroadcastConnected()
-        })
+        }
 
         // Delete socket
         delete Sockets[socket.id]
